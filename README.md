@@ -3,7 +3,7 @@ A collection of Bash scripts.
 
 ## extract
 
-Unpacks password protected (and not prassword protected) archives by going through a text file with a line separated list of passwords and trying each one in turn (and in parallel). It automatically checks the current path for archives and tries to unpack all of them. Works seamlessly with archives split into multiple parts. Handles 7z, rar, and zip files. 
+Unpacks password protected (and not prassword protected) archives in parallel by going through a text file with a line separated list of passwords and trying each one in turn. It automatically checks the current path for archives and tries to unpack all of them. Works seamlessly with archives split into multiple parts. Handles 7z, rar, and zip files. 
 
 **Requirements:** 
 7z, unrar
