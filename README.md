@@ -17,3 +17,12 @@ Use AI to enhance videos. Enhances the quality of the video with Real-ESRGAN, do
 [RIFE ncnn Vulkan](https://github.com/nihui/rife-ncnn-vulkan) (executable as `rife`),
 ImageMagick,
 ffmpeg
+
+## framerestore
+
+Replaces duplicate frames in videos with RIFE interpolated frames. Goes through the video frame by frame and checks if the next frame was the same as the previous. Then replaces the duplicates with interpolated frames, generated from the first duplicate and the next non-duplicate frame.
+
+**Requirements:**
+[RIFE ncnn Vulkan](https://github.com/nihui/rife-ncnn-vulkan) (executable as `rife`),
+ffmpeg,
+idiff (part of `openimageio-tools` package on Debian)

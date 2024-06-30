@@ -1,0 +1,83 @@
+#! /bin/bash
+
+VIDEO="$1"
+
+mkdir frames
+
+ffmpeg \
+	-v warning \
+	-hide_banner \
+	-stats \
+	-i $VIDEO \
+	frames/%08d.png &> /dev/null
+	
+compare() {
+	PREVIOUS="frames/$(printf "%08d" $(($1 - 1))).png"
+	CURRENT="frames/$(printf "%08d" $1).png"
+	RESULT=$(idiff -q -failpercent 40 $PREVIOUS $CURRENT 2>&1)
+	if [ ! "$RESULT" ]; then
+		echo "$1"
+	fi
+}
+export -f compare
+
+interpolate() {
+	A="$(printf "%08d" $1).png"
+	B="$(printf "%08d" $2).png"
+	N="$3"
+	# rife is stupid and repeats the last frame a number of times,
+	# so we need to generate extra frames. This formula fixes that.
+	N_REAL="$((2 + 2 * ($N - 2) ))" 
+	FRAMES="frames"
+	TMP="$FRAMES/tmp"
+	
+	echo $A $B
+	
+	mkdir -p $TMP
+	cp -f "$FRAMES/$A" "$TMP/a.png"
+	cp -f "$FRAMES/$B" "$TMP/b.png"
+	
+	rife -i $TMP -o $TMP -n $N_REAL -m rife-v4 -u -x -z -f "%d.png" &> /dev/null
+		
+	rm "$TMP/a.png" "$TMP/b.png"
+		
+	for I in $(seq 1 $N); do
+		SRC="$TMP/$I.png"
+		DST="$FRAMES/$(printf "%08d" $(($I + $1 - 1))).png"
+		mv -f $SRC $DST
+	done
+	
+	rm -f $TMP/*
+}
+
+# Count the number of frames
+FRAME_COUNT=$(($(ls frames/* | wc -l) - 1))
+FRAME_NUMBERS=($(seq 2 $FRAME_COUNT))
+
+# Find all duplicate frames and store in a sorted array
+DUPLICATES=($(parallel --bar --group compare {1} ::: ${FRAME_NUMBERS[@]}))
+IFS=$'\n' DUPLICATES=($(sort -n <<<"${DUPLICATES[*]}"))
+
+# Process the frames
+END_FRAME=${DUPLICATES[0]}
+BEGIN_FRAME=${DUPLICATES[0]}
+COUNT=2
+for DUPLICATE in "${DUPLICATES[@]:1}" "${DUPLICATES[-1]}"; do
+	# Remove duplicate frame
+	rm -f "frames/$(printf "%08d" $DUPLICATE).png"
+	COUNT=$(($COUNT + 1))
+	
+	# 
+	if [ "$END_FRAME" != "$(($DUPLICATE - 1))" ]; then
+		# Do the interpolation
+		interpolate "$(($BEGIN_FRAME - 1))" "$(($END_FRAME + 1))" "$COUNT"
+
+		# Reset values
+		BEGIN_FRAME=$DUPLICATE
+		COUNT=2
+	fi
+	END_FRAME=$DUPLICATE
+done
+
+ffmpeg -r 12 -f image2 -i frames/%08d.png -vcodec libx264 -crf 0 -pix_fmt yuv420p $VIDEO.fr.mkv &> /dev/null && rm -r frames
+
