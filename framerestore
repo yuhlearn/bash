@@ -79,5 +79,5 @@ for DUPLICATE in "${DUPLICATES[@]:1}" "${DUPLICATES[-1]}"; do
 	END_FRAME=$DUPLICATE
 done
 
-ffmpeg -r 12 -f image2 -i frames/%08d.png -vcodec libx264 -crf 0 -pix_fmt yuv420p $VIDEO.fr.mkv &> /dev/null && rm -r frames
+ffmpeg -r 30 -f image2 -i frames/%08d.png -vcodec libx264 -crf 10 -pix_fmt yuv420p $VIDEO.fr.mkv &> /dev/null && rm -r frames
 
