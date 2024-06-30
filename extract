@@ -1,0 +1,48 @@
+#! /bin/bash
+
+if [ "$#" -ne 1 ]; then
+	echo "Must give one argument, which is the file with passwords."
+	exit 0
+fi
+
+IFS=$'\n'
+RARS=$(ls -- *\.rar  2> /dev/null | sed '/^.*part[0-9]*[^1]\.rar$/d')
+X7ZS=$(ls -- *\.7z*  2> /dev/null | sed '/^.*7z\.*[0-9]*[^1]$/d')
+ZIPS=$(ls -- *\.zip* 2> /dev/null )
+FILES=("${RARS[@]}" "${X7ZS[@]}" "${ZIPS[@]}")
+
+try_extract () {
+	local FILE=$1
+	local PWDS=($(cat < "$2"))
+	local RET=
+
+    for PWD in "${PWDS[@]}"; do
+        if [[ "$FILE" =~ \.rar$ ]]; 
+        then unrar t "$FILE" -p"$PWD" &> /dev/null
+        else 7z t "$FILE" -p"$PWD" &> /dev/null
+        fi
+
+        RET=$?
+
+        if [ "$RET" == 0 ]; then
+            if [[ "$FILE" =~ \.rar$ ]]; 
+            then unrar x "$FILE" -p"$PWD" &> /dev/null
+            else 7z x "$FILE" -aoa -p"$PWD" &> /dev/null
+            fi
+
+            echo -e "\033[0;32m$FILE\033[0m";
+            break;
+        fi
+    done
+
+    if [ "$RET" != 0 ]; then
+        echo -e "\033[0;31m$FILE\033[0m";
+    fi
+}
+export -f try_extract
+
+if [ -f "$1" ]; then
+	parallel try_extract "{1}" "$1" ::: ${FILES[@]}
+else
+	echo "$1: no such file"
+fi
