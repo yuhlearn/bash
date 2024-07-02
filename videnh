@@ -8,8 +8,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-LONGOPTS=chunksize,fps:,model:,insize:,lighten:,size:,quality:,tta,help
-OPTIONS=c:f:m:p:l:s:q:xh
+LONGOPTS=chunksize,fps:,model:,insize:,lighten:,size:,quality:,rife,tta,help
+OPTIONS=c:f:m:p:l:s:q:rxh
 
 ! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
@@ -25,6 +25,7 @@ CHUNK=00:10
 RESOLUTION=x1080
 LIGHTEN=n
 QUALITY=10
+RIFE=n
 TTA=
 HELP=$(cat <<-END
 Usage: videnh [OPTIONS] FILE
@@ -42,6 +43,7 @@ Options:
                   Default: x1080
   -q --quality    Quality of the H.264 output video: CRF 0-51
                   Default: 10
+  -r --rife       Apply RIFE interpolation in order to double the frame rate.
   -x --tta        Enable tta mode
   -h --help
 END
@@ -140,6 +142,10 @@ while true; do
             QUALITY=$2
             shift 2
             ;;
+        -r|--rife)
+            RIFE=y
+            shift 1
+            ;;
         -x|--tta)
             TTA=-x
             shift 1
@@ -165,6 +171,7 @@ if [[ $# -ne 1 ]]; then
 fi
 
 TMP="temp_$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20 ; echo '')"
+INFILE=$(basename ${1%.*})
 
 if [ -f $1 ]; then
     mkdir \
@@ -175,6 +182,8 @@ if [ -f $1 ]; then
     	$TMP/frames \
     	$TMP/esrgan \
     	$TMP/rife
+    
+    echo $INFILE >> $TMP/filename.txt
     
     ffmpeg \
     	-i $1 \
@@ -198,7 +207,11 @@ elif [ -d $1 ]; then
     rm -f \
     	$TMP/frames/* \
     	$TMP/esrgan/* \
-    	$TMP/rife/* 
+    	$TMP/rife/*
+    if [ ! -f "$TMP/filename.txt" ]; 
+    	then echo "Error: Missing $TMP/filename.txt"; exit 1; fi
+    	
+    INFILE="$(<$TMP/filename.txt)"
 else
     echo "Error: Argument neither file or directory."
     exit 1  
@@ -221,7 +234,7 @@ for PART in parts/*.mkv; do
     	-hide_banner \
     	-stats \
     	-i $PART \
-    	frames/%06d.png &> /dev/null
+    	frames/%08d.png &> /dev/null
     
     # Process the frames with ESRGAN
 	realesrgan -i ./frames -o ./esrgan/ $TTA -j 1:1:2 -n "$MODEL" 2>&1 | esrgan_progress
@@ -241,9 +254,14 @@ for PART in parts/*.mkv; do
 		sleep $SLEEP
 	fi
     
-    # Apply RIFE interpolation to the processed images, doubling the frame rate
-    rife -i ./esrgan/ -o ./rife/ -v -j 1:1:2 -m rife-v4 -u 2>&1 | rife_progress
-    sleep $SLEEP
+    if [ $RIFE != n ]; then
+		# Apply RIFE interpolation to the processed images, doubling the frame rate
+		rife -i ./esrgan/ -o ./rife/ -v -j 1:1:2 -m rife-v4 -u 2>&1 | rife_progress
+		sleep $SLEEP
+	else
+		# Skip the interpolation step and just move the frames into the RIFE folder
+		mv ./esrgan/* ./rife/
+    fi
 
 	# Merge the frames into a video
     ffmpeg \
@@ -273,5 +291,5 @@ ffmpeg \
 	-safe 0 \
 	-i list.txt \
 	-c copy \
-	out/out.mkv &> /dev/null
+	out/out.mkv &> /dev/null && mv out/out.mkv ../$INFILE.enh.mkv && rm -r ../$TMP
 
