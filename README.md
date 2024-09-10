@@ -13,7 +13,7 @@ Unpacks password protected (and not prassword protected) archives in parallel by
 Use AI to enhance videos. Enhances the quality of the video with Real-ESRGAN, doubles the frame rate with RIFE interpolation and allows for custom output frame size, among other things. It uses ncnn Vulcan implementations of Real-ESRGAN and RIFE to be more platform independent. 
 
 **Requirements:**
-[Real-ESRGAN ncnn Vulkan](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan) (executable as `realesrgan`),
+[Real-ESRGAN ncnn Vulkan](https://github.com/xinntao/Real-ESRGAN/) (executable as `realesrgan`),
 [RIFE ncnn Vulkan](https://github.com/nihui/rife-ncnn-vulkan) (executable as `rife`),
 ImageMagick,
 ffmpeg
